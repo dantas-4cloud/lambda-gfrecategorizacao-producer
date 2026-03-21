@@ -20,12 +20,14 @@ observabilidade em CloudWatch.
 - Múltiplos ambientes precisam de configuração manual
 
 ### Solução Implementada
+```
 ✅ Lambda serverless processando eventos via DynamoDB Streams
 ✅ Circuit breaker + retry para falhas da API externa
 ✅ Logs estruturados em CloudWatch (ECS format)
 ✅ Infrastructure as Code (Terraform) para 3 ambientes
 ✅ Testes automáticos (27 testes, >80% coverage)
 ✅ CI/CD com GitHub Actions
+```
 
 ---
 
