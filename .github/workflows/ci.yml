@@ -3,9 +3,7 @@ name: CI Pipeline
 on:
   push:
     branches:
-      - develop
       - feature/**
-      - feature-flag
   pull_request:
     branches:
       - develop
@@ -23,36 +21,20 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
       
-      - name: Install dependencies
-        run: |
+      - run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Run linting with ruff
-        run: |
-          ruff check src/ tests/
-      
-      - name: Run type checking with mypy
-        run: |
-          mypy src/ --ignore-missing-imports --no-error-summary || true
-      
-      - name: Run tests with pytest
-        run: |
-          pytest tests/ \
-            -v \
-            --cov=src \
-            --cov-report=html \
-            --cov-report=term-missing \
-            --cov-fail-under=80
+      - run: ruff check src/ tests/
+      - run: mypy src/ --ignore-missing-imports --no-error-summary || true
+      - run: pytest tests/ -v --cov=src --cov-fail-under=80
 
   terraform-validation:
     name: 🔧 Terraform Validation
@@ -60,37 +42,17 @@ jobs:
     needs: python-tests
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+      - uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.6.0
       
-      - name: Terraform Format Check
-        run: |
-          cd terraform
-          terraform fmt -check -recursive .
-      
-      - name: Terraform Init & Validate
-        run: |
-          cd terraform
-          terraform init -backend=false
-          terraform validate
-      
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v3
-      
-      - name: TFLint - Check
-        run: |
-          cd terraform
-          tflint --init
-          tflint
+      - run: cd terraform && terraform fmt -check -recursive .
+      - run: cd terraform && terraform init -backend=false && terraform validate
+      - uses: terraform-linters/setup-tflint@v3
+      - run: cd terraform && tflint --init && tflint
 
-  # ---------------------------------------------------------
-  # 1️⃣ PR automático: feature/* → develop
-  # ---------------------------------------------------------
   pr-feature-to-develop:
     name: 📝 PR feature → develop
     runs-on: ubuntu-latest
@@ -102,14 +64,13 @@ jobs:
       needs.terraform-validation.result == 'success'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Sanitize branch name
-        id: sanitize-feature
+        id: sanitize
         run: |
-          SANITIZED=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
-          echo "sanitized_branch=$SANITIZED" >> $GITHUB_OUTPUT
+          CLEAN=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          echo "clean=$CLEAN" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
@@ -118,62 +79,6 @@ jobs:
           commit-message: "chore: automated PR from feature to develop"
           title: "🔄 Merge ${{ github.ref_name }} into develop"
           body: "Automated PR after successful CI."
-          branch: automated-pr/${{ steps.sanitize-feature.outputs.sanitized_branch }}-${{ github.run_number }}
+          branch: automated-pr/${{ steps.sanitize.outputs.clean }}-${{ github.run_number }}
           base: develop
-          labels: automated
-
-  # ---------------------------------------------------------
-  # 2️⃣ PR automático: develop → feature-flag
-  # ---------------------------------------------------------
-  pr-develop-to-feature-flag:
-    name: 📝 PR develop → feature-flag
-    runs-on: ubuntu-latest
-    needs: [python-tests, terraform-validation]
-
-    if: |
-      github.ref == 'refs/heads/develop' &&
-      needs.python-tests.result == 'success' &&
-      needs.terraform-validation.result == 'success'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: automated PR from develop to feature-flag"
-          title: "🔄 Merge develop into feature-flag"
-          body: "Automated PR after successful CI."
-          branch: automated-pr/develop-to-feature-flag-${{ github.run_number }}
-          base: feature-flag
-          labels: automated
-
-  # ---------------------------------------------------------
-  # 3️⃣ PR automático: feature-flag → main
-  # ---------------------------------------------------------
-  pr-feature-flag-to-main:
-    name: 📝 PR feature-flag → main
-    runs-on: ubuntu-latest
-    needs: [python-tests, terraform-validation]
-
-    if: |
-      github.ref == 'refs/heads/feature-flag' &&
-      needs.python-tests.result == 'success' &&
-      needs.terraform-validation.result == 'success'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: automated PR from feature-flag to main"
-          title: "🔄 Merge feature-flag into main"
-          body: "Automated PR after successful CI."
-          branch: automated-pr/feature-flag-to-main-${{ github.run_number }}
-          base: main
           labels: automated
