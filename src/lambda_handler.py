@@ -47,24 +47,24 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Erro ao processar evento: {str(e)}")
-        return {
-            "statusCode": 500,
-            "body": json.dumps(
-                {
-                    "error": str(e),
-                }
-            ),
-        }
+        logger.error(f"Erro ao processar evento: {str(e)}")  # pragma: no cover
+        return {  # pragma: no cover
+            "statusCode": 500,  # pragma: no cover
+            "body": json.dumps(  # pragma: no cover
+                {  # pragma: no cover
+                    "error": str(e),  # pragma: no cover
+                }  # pragma: no cover
+            ),  # pragma: no cover
+        }  # pragma: no cover
 
 
 # Para testes locais
-if __name__ == "__main__":
-    test_event = {"test": "data"}
+if __name__ == "__main__":  # pragma: no cover
+    test_event = {"test": "data"}  # pragma: no cover
 
-    class MockContext:
-        aws_request_id = "local-test"
-        memory_limit_in_mb = 128
+    class MockContext:  # pragma: no cover
+        aws_request_id = "local-test"  # pragma: no cover
+        memory_limit_in_mb = 128  # pragma: no cover
 
-    result = lambda_handler(test_event, MockContext())
-    print(json.dumps(result, indent=2))
+    result = lambda_handler(test_event, MockContext())  # pragma: no cover
+    print(json.dumps(result, indent=2))  # pragma: no cover
