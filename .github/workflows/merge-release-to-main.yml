@@ -2,8 +2,7 @@ name: Merge Release to Main
 
 on:
   push:
-    branches:
-      - release/feature-flag
+    branches: ["release/feature-flag"]
 
 permissions:
   contents: write
@@ -15,8 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
+        with: { python-version: "3.12" }
       - run: pip install -r requirements.txt
       - run: pytest tests/ -v --cov=src --cov-fail-under=80
       - run: cd terraform && terraform fmt -check -recursive . && terraform validate
@@ -27,9 +25,8 @@ jobs:
     if: github.ref == 'refs/heads/release/feature-flag'
     steps:
       - uses: actions/checkout@v4
-
-      - name: Create PR release → main
-        uses: peter-evans/create-pull-request@v5
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: release to main"
