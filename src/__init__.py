@@ -1,3 +1,0 @@
-"""
-Módulo raiz do projeto
-"""
