@@ -91,7 +91,10 @@ jobs:
     name: 📝 Create Pull Request
     runs-on: ubuntu-latest
     needs: [python-tests, terraform-validation]
-    if: github.ref != 'refs/heads/develop' && success()
+    if: |
+      github.ref != 'refs/heads/develop' &&
+      needs.python-tests.result == 'success' &&
+      needs.terraform-validation.result == 'success'
     
     steps:
       - name: Checkout code
@@ -117,4 +120,4 @@ jobs:
           branch: automated-pr/${{ github.ref_name }}-${{ github.run_number }}
           base: develop
           delete-branch: true
-          title-field-markdown: true
+          labels: automated
