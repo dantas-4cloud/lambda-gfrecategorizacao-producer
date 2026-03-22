@@ -2,7 +2,7 @@
 
 ## 🎯 Contexto de Negócio
 
-- Lambda responsável **recategoriza eventos financeiros em tempo real** conforme as
+- Lambda **recategoriza eventos financeiros em tempo real** conforme as
 preferências do usuário. Processa transações (💳 Cartão, 🏦 Corrente, 📱 PIX) disparadas
 por DynamoDB Streams, integra com API de categorização e persiste resultados com
 observabilidade em CloudWatch.
