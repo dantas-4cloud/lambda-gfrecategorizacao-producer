@@ -3,18 +3,17 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
-from requests.exceptions import Timeout, ConnectionError
+from requests.exceptions import ConnectionError, Timeout
 
 from src.main import (
-    lambda_handler,
-    validate_record,
-    extract_transaction,
     categorize_transaction,
+    extract_transaction,
+    lambda_handler,
     parse_categorizer_response,
     persist_categorization,
+    validate_record,
 )
-from src.models import Transaction, TransactionType, Categorization
-
+from src.models import Categorization, Transaction, TransactionType
 
 # ============ Test Constants ============
 

@@ -7,7 +7,6 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-
 # Setup básico de logging
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(message)s")
 

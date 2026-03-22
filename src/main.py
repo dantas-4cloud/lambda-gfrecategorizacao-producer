@@ -14,7 +14,6 @@ from requests.exceptions import RequestException, Timeout
 from src.config import log_error, log_info, log_warning
 from src.models import Categorization, Transaction
 
-
 # Clients AWS - Inicializados uma única vez ao importar o módulo
 # Nota: Recomendado inicializar fora do Lambda handler para reutilizar conexões
 _dynamodb_client = boto3.client(

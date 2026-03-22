@@ -1,9 +1,9 @@
 """
 Pytest configuration and fixtures for Lambda tests.
 """
+from typing import Any, Dict
 
 import pytest
-from typing import Any, Dict, Generator
 
 
 class MockContext:
