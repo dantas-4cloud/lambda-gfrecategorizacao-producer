@@ -102,7 +102,14 @@ jobs:
       needs.terraform-validation.result == 'success'
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sanitize branch name
+        id: sanitize-feature
+        run: |
+          SANITIZED=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          echo "sanitized_branch=$SANITIZED" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
@@ -111,12 +118,12 @@ jobs:
           commit-message: "chore: automated PR from feature to develop"
           title: "🔄 Merge ${{ github.ref_name }} into develop"
           body: "Automated PR after successful CI."
-          branch: automated-pr/${{ github.ref_name.replace('/', '-') }}-${{ github.run_number }}
+          branch: automated-pr/${{ steps.sanitize-feature.outputs.sanitized_branch }}-${{ github.run_number }}
           base: develop
           labels: automated
 
   # ---------------------------------------------------------
-  # 2️⃣ PR automático: develop → feature-flag (homologação)
+  # 2️⃣ PR automático: develop → feature-flag
   # ---------------------------------------------------------
   pr-develop-to-feature-flag:
     name: 📝 PR develop → feature-flag
@@ -129,7 +136,8 @@ jobs:
       needs.terraform-validation.result == 'success'
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
@@ -143,7 +151,7 @@ jobs:
           labels: automated
 
   # ---------------------------------------------------------
-  # 3️⃣ PR automático: feature-flag → main (produção)
+  # 3️⃣ PR automático: feature-flag → main
   # ---------------------------------------------------------
   pr-feature-flag-to-main:
     name: 📝 PR feature-flag → main
@@ -156,7 +164,8 @@ jobs:
       needs.terraform-validation.result == 'success'
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
