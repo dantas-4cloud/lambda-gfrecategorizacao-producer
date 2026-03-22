@@ -12,8 +12,13 @@ on:
 env:
   PYTHON_VERSION: '3.12'
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  test:
+  python-tests:
+    name: 🧪 Python Tests
     runs-on: ubuntu-latest
     
     steps:
@@ -47,28 +52,69 @@ jobs:
             --cov-report=html \
             --cov-report=term-missing \
             --cov-fail-under=80
+
+  terraform-validation:
+    name: 🔧 Terraform Validation
+    runs-on: ubuntu-latest
+    needs: python-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.6.0
-        if: always()
       
-      - name: Validate Terraform
+      - name: Terraform Format Check
         run: |
           cd terraform
           terraform fmt -check -recursive .
+      
+      - name: Terraform Init & Validate
+        run: |
+          cd terraform
           terraform init -backend=false
           terraform validate
-        if: always()
       
-      - name: Run TFLint
+      - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v3
-        if: always()
       
       - name: TFLint - Check
         run: |
           cd terraform
           tflint --init
           tflint
-        if: always()
+
+  create-pull-request:
+    name: 📝 Create Pull Request
+    runs-on: ubuntu-latest
+    needs: [python-tests, terraform-validation]
+    if: github.ref != 'refs/heads/develop' && success()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: automated PR from CI pipeline"
+          title: "🔄 CI Pipeline - Merge ${{ github.ref_name }} into develop"
+          body: |
+            ## 🚀 Automated Pull Request
+            
+            ✅ **All CI checks passed:**
+            - ✓ Python lint (ruff)
+            - ✓ Type checking (mypy)
+            - ✓ Tests (pytest - 80%+ coverage)
+            - ✓ Terraform format & validate
+            - ✓ TFLint checks
+            
+            **Ready to merge into `develop` branch.**
+          branch: automated-pr/${{ github.ref_name }}-${{ github.run_number }}
+          base: develop
+          delete-branch: true
+          title-field-markdown: true
