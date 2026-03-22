@@ -48,6 +48,12 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=80
       
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+        if: always()
+      
       - name: Validate Terraform
         run: |
           cd terraform

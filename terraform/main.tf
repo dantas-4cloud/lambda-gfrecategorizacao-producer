@@ -1,6 +1,3 @@
-# Data source to get current AWS account
-data "aws_caller_identity" "current" {}
-
 # CloudWatch Log Group for Lambda
 resource "aws_cloudwatch_log_group" "lambda_logs" {
   name              = "/aws/lambda/${var.environment}-${var.lambda_function_name}"
