@@ -62,7 +62,7 @@ cp .env.example .env
 
 # Editar .env com seus valores:
 export ENVIRONMENT=dev
-export AWS_REGION=us-east-1
+export AWS_REGION=us-east-2
 export CATEGORIZER_ENDPOINT=https://api-dev.categorizer.example.com/api/v1/categorize
 export CATEGORIZER_TOKEN=seu_token_aqui
 export LOG_LEVEL=DEBUG
@@ -196,7 +196,7 @@ cd terraform
 # Criar bucket
 aws s3api create-bucket \
   --bucket tfstate-gfrecategorizacao-producer \
-  --region us-east-1
+  --region us-east-2
 
 # Criar tabela DynamoDB para lock
 aws dynamodb create-table \
@@ -301,7 +301,7 @@ EOF
 aws lambda invoke \
   --function-name recategorization-producer-dev \
   --payload file://payload.json \
-  --region us-east-1 \
+  --region us-east-2 \
   response.json
 
 # Ver resposta
@@ -400,7 +400,7 @@ curl -X POST https://api.example.com/categorize \
 
 ### Local (.env)
 ```env
-AWS_REGION=us-east-1
+AWS_REGION=us-east-2
 ENVIRONMENT=dev
 DYNAMODB_TRANSACTIONS_TABLE=GestaoFinanceira-Transacoes-dev
 DYNAMODB_CATEGORIZATIONS_TABLE=GestaoFinanceira-Categorizacoes-dev

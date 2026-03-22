@@ -19,7 +19,7 @@ from src.models import Categorization, Transaction
 # Nota: Recomendado inicializar fora do Lambda handler para reutilizar conexões
 _dynamodb_client = boto3.client(
     "dynamodb",
-    region_name=os.environ.get("AWS_REGION", "us-east-1"),
+    region_name=os.environ.get("AWS_REGION", "us-east-2"),
     config=boto3.session.Config(connect_timeout=5, read_timeout=5),
 )
 

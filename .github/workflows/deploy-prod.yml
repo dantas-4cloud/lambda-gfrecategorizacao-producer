@@ -1,168 +1,157 @@
-name: Deploy Production (Main)
+name: Deploy - Production
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
-    types:
-      - opened
-      - synchronize
-  workflow_dispatch:  # Permite trigger manual
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-2
+  ENVIRONMENT: prod
+  TF_VERSION: 1.6.0
 
 permissions:
   id-token: write
   contents: read
-  pull-requests: write
 
 jobs:
-  ci:
-    name: Run CI Tests
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      - name: Run tests
+
+      - name: Run pytest
         run: |
-          pytest tests/ -v --cov=src --cov-fail-under=80 --tb=short
-  
+          pytest tests/ -v --cov=src --cov-fail-under=80
+
   terraform-plan:
-    name: Terraform Plan (PROD)
-    needs: ci
+    name: Plan Terraform
+    needs: test
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v4
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.6.0
-      
+          terraform_version: ${{ env.TF_VERSION }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-east-1
-      
-      - name: Terraform Format Check
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Validation
         run: |
-          cd terraform
+          cd infra
           terraform fmt -check -recursive .
-      
-      - name: Terraform Init
-        run: |
-          cd terraform
           terraform init -backend=false
-      
+          terraform validate
+
       - name: Terraform Plan
         run: |
-          cd terraform
+          cd infra
           terraform plan \
             -var-file="environments/prod.tfvars" \
-            -out=prod.tfplan \
+            -out=tfplan \
             -input=false
-      
-      - name: Upload Terraform Plan
+
+      - name: Upload Plan
         uses: actions/upload-artifact@v4
         with:
-          name: prod-terraform-plan
-          path: terraform/prod.tfplan
-  
+          name: prod-tfplan
+          path: infra/tfplan
+
   approval:
     name: Manual Approval
     needs: terraform-plan
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
-      - name: Wait for approval
-        run: |
-          echo "Waiting for manual approval to deploy to PROD..."
-          echo "This job requires manual approval in GitHub Actions"
-  
+      - run: |
+          echo "⏳ Awaiting manual approval for production deployment..."
+          echo "Review the terraform plan before approving"
+
   deploy:
     name: Deploy to Production
     needs: approval
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: prod-terraform-plan
-          path: terraform/
-      
+      - uses: actions/checkout@v4
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.6.0
-      
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-tfplan
+          path: infra/
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-east-1
-      
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Terraform Init
         run: |
-          cd terraform
+          cd infra
           terraform init -backend=false
-      
+
       - name: Terraform Apply
         run: |
-          cd terraform
-          terraform apply \
-            -no-color \
-            -input=false \
-            prod.tfplan
-      
-      - name: Wait for Lambda Warmup
+          cd infra
+          terraform apply -no-color -input=false tfplan
+
+      - name: Lambda Warmup
         run: sleep 30
-      
-      - name: Run Smoke Tests
+
+      - name: Get Lambda Info
         run: |
-          python -m pytest tests/unit/test_lambda_handler.py -v
-      
-      - name: Verify CloudWatch Logs
+          cd infra
+          echo "Lambda ARN: $(terraform output -raw lambda_function_arn)"
+          echo "Lambda URL: $(terraform output -raw lambda_function_url)"
+          echo "Log Group: $(terraform output -raw cloudwatch_log_group_name)"
+
+      - name: Health Check
         run: |
-          aws logs describe-log-groups \
-            --log-group-name-prefix "/aws/lambda/recategorization-producer" \
-            --region us-east-1
-      
-      - name: Create GitHub Release
-        if: success()
+          LAMBDA_URL=$(cd infra && terraform output -raw lambda_function_url)
+          echo "Testing Lambda at: $LAMBDA_URL"
+          curl -s -X POST "$LAMBDA_URL" \
+            -H "Content-Type: application/json" \
+            -d '{"test": "prod-deployment"}' \
+            -w "\nStatus: %{http_code}\n"
+
+      - name: Create Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: prod-${{ github.sha }}
-          release_name: Production Deployment - ${{ github.sha }}
+          release_name: Release ${{ github.sha }}
           body: |
-            Production deployment completed successfully.
-            
+            Production deployment completed
             Commit: ${{ github.sha }}
             Branch: ${{ github.ref }}
           draft: false

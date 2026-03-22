@@ -1,8 +1,8 @@
 environment                         = "prod"
-aws_region                          = "us-east-1"
+aws_region                          = "us-east-2"
 lambda_memory_size                  = 512
 lambda_timeout                      = 30
-lambda_reserved_concurrency         = 100
+lambda_reserved_concurrency         = 5
 dynamodb_transactions_table_name    = "GestaoFinanceira-Transacoes"
 dynamodb_categorizations_table_name = "GestaoFinanceira-Categorizacoes"
 dynamodb_billing_mode               = "PROVISIONED"

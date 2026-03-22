@@ -1,8 +1,8 @@
 environment                         = "dev"
-aws_region                          = "us-east-1"
+aws_region                          = "us-east-2"
 lambda_memory_size                  = 256
-lambda_timeout                      = 30
-lambda_reserved_concurrency         = 10
+lambda_timeout                      = 5
+lambda_reserved_concurrency         = 2
 dynamodb_transactions_table_name    = "GestaoFinanceira-Transacoes-dev"
 dynamodb_categorizations_table_name = "GestaoFinanceira-Categorizacoes-dev"
 dynamodb_billing_mode               = "PAY_PER_REQUEST"

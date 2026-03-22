@@ -12,7 +12,7 @@ terraform {
   # backend "s3" {
   #   bucket         = "tfstate-gfrecategorizacao-producer"
   #   key            = "terraform.tfstate"
-  #   region         = "us-east-1"
+  #   region         = "us-east-2"
   #   encrypt        = true
   #   dynamodb_table = "tfstate-lock-gfrecategorizacao-producer"
   # }

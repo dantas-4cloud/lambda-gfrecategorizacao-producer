@@ -11,7 +11,7 @@ terraform {
   backend "s3" {
     bucket         = "terraform-state-lambda-gfrecategorizacao"
     key            = "state/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "us-east-2"
     encrypt        = true
     dynamodb_table = "terraform-state-lock"
   }

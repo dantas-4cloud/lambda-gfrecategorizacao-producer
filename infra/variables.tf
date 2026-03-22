@@ -3,7 +3,7 @@
 variable "aws_region" {
   description = "AWS region"
   type        = string
-  default     = "us-east-1"
+  default     = "us-east-2"
 }
 
 variable "environment" {
@@ -42,7 +42,7 @@ variable "lambda_timeout" {
 variable "lambda_reserved_concurrency" {
   description = "Lambda reserved concurrency"
   type        = number
-  default     = 100
+  default     = 2
 }
 
 # ============ DynamoDB Configuration ============
