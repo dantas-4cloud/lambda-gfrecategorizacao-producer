@@ -5,6 +5,7 @@ on:
     branches:
       - develop
       - feature/**
+      - feature-flag
   pull_request:
     branches:
       - develop
@@ -87,37 +88,83 @@ jobs:
           tflint --init
           tflint
 
-  create-pull-request:
-    name: 📝 Create Pull Request
+  # ---------------------------------------------------------
+  # 1️⃣ PR automático: feature/* → develop
+  # ---------------------------------------------------------
+  pr-feature-to-develop:
+    name: 📝 PR feature → develop
     runs-on: ubuntu-latest
     needs: [python-tests, terraform-validation]
+
     if: |
-      github.ref != 'refs/heads/develop' &&
+      startsWith(github.ref, 'refs/heads/feature/') &&
       needs.python-tests.result == 'success' &&
       needs.terraform-validation.result == 'success'
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: automated PR from CI pipeline"
-          title: "🔄 CI Pipeline - Merge ${{ github.ref_name }} into develop"
-          body: |
-            ## 🚀 Automated Pull Request
-            
-            ✅ **All CI checks passed:**
-            - ✓ Python lint (ruff)
-            - ✓ Type checking (mypy)
-            - ✓ Tests (pytest - 80%+ coverage)
-            - ✓ Terraform format & validate
-            - ✓ TFLint checks
-            
-            **Ready to merge into `develop` branch.**
-          branch: automated-pr/${{ github.ref_name }}-${{ github.run_number }}
+          commit-message: "chore: automated PR from feature to develop"
+          title: "🔄 Merge ${{ github.ref_name }} into develop"
+          body: "Automated PR after successful CI."
+          branch: automated-pr/${{ github.ref_name.replace('/', '-') }}-${{ github.run_number }}
           base: develop
-          delete-branch: true
+          labels: automated
+
+  # ---------------------------------------------------------
+  # 2️⃣ PR automático: develop → feature-flag (homologação)
+  # ---------------------------------------------------------
+  pr-develop-to-feature-flag:
+    name: 📝 PR develop → feature-flag
+    runs-on: ubuntu-latest
+    needs: [python-tests, terraform-validation]
+
+    if: |
+      github.ref == 'refs/heads/develop' &&
+      needs.python-tests.result == 'success' &&
+      needs.terraform-validation.result == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: automated PR from develop to feature-flag"
+          title: "🔄 Merge develop into feature-flag"
+          body: "Automated PR after successful CI."
+          branch: automated-pr/develop-to-feature-flag-${{ github.run_number }}
+          base: feature-flag
+          labels: automated
+
+  # ---------------------------------------------------------
+  # 3️⃣ PR automático: feature-flag → main (produção)
+  # ---------------------------------------------------------
+  pr-feature-flag-to-main:
+    name: 📝 PR feature-flag → main
+    runs-on: ubuntu-latest
+    needs: [python-tests, terraform-validation]
+
+    if: |
+      github.ref == 'refs/heads/feature-flag' &&
+      needs.python-tests.result == 'success' &&
+      needs.terraform-validation.result == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: automated PR from feature-flag to main"
+          title: "🔄 Merge feature-flag into main"
+          body: "Automated PR after successful CI."
+          branch: automated-pr/feature-flag-to-main-${{ github.run_number }}
+          base: main
           labels: automated
