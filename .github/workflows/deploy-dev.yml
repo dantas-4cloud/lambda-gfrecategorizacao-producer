@@ -37,6 +37,18 @@ jobs:
         run: |
           pytest tests/ -v --cov=src --cov-fail-under=80
 
+      - name: Build Lambda Package
+        run: |
+          mkdir -p package
+          cd src
+          pip install -r ../requirements.txt -t ../package/ --quiet
+          cp *.py ../package/
+          cd ../package
+          zip -r ../lambda_function.zip . -q
+          cd ..
+          mv lambda_function.zip infra/
+          echo "✓ Lambda package created at infra/lambda_function.zip"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
