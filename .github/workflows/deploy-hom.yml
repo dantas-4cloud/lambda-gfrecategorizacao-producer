@@ -72,7 +72,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::366476833548:role/github-actions-deploy
+          role-to-assume: arn:aws:iam::366476833548:oidc-provider/token.actions.githubusercontent.com:role/github-actions-deploy
           aws-region: us-east-2
 
       - name: Terraform Validation
@@ -119,7 +119,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::366476833548:role/github-actions-deploy
+          role-to-assume: arn:aws:iam::366476833548:oidc-provider/token.actions.githubusercontent.com:role/github-actions-deploy
           aws-region: us-east-2
 
       - name: Terraform Init
