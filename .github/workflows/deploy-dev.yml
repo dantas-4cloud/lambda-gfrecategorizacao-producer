@@ -57,7 +57,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::366476833548:oidc-provider/token.actions.githubusercontent.com
+          role-to-assume: arn:aws:iam::366476833548:role/github-actions-deploy
           aws-region: us-east-2
 
       - name: Terraform Format Check
