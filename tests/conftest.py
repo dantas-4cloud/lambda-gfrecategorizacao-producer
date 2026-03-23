@@ -1,9 +1,9 @@
 """
 Pytest configuration and fixtures for Lambda tests.
 """
+from typing import Any, Dict
 
 import pytest
-from typing import Any, Dict, Generator
 
 
 class MockContext:
@@ -11,9 +11,7 @@ class MockContext:
 
     aws_request_id = "test-request-id-12345"
     memory_limit_in_mb = 128
-    invoked_function_arn = (
-        "arn:aws:lambda:us-east-1:123456789012:function:test-function"
-    )
+    invoked_function_arn = "arn:aws:lambda:us-east-2:123456789012:function:test-function"
     function_version = "$LATEST"
     function_name = "test-function"
     log_group_name = "/aws/lambda/test-function"
@@ -50,7 +48,7 @@ def dynamodb_stream_event() -> Dict[str, Any]:
                 },
                 "eventSource": "aws:dynamodb",
                 "eventName": "INSERT",
-                "awsRegion": "us-east-1",
+                "awsRegion": "us-east-2",
             }
         ]
     }

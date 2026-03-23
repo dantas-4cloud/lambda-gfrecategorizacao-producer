@@ -1,0 +1,37 @@
+name: Merge Release to Main
+
+on:
+  push:
+    branches: ["release/feature-flag"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --cov=src --cov-fail-under=80
+      - run: cd terraform && terraform fmt -check -recursive . && terraform validate
+
+  pr-release-to-main:
+    needs: tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/release/feature-flag'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: release to main"
+          title: "[PROD] Release from release/feature-flag"
+          body: "Automated PR after successful CI."
+          branch: release-to-main-${{ github.run_number }}
+          base: main
+          labels: release,automated

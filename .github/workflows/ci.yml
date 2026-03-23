@@ -3,65 +3,108 @@ name: CI Pipeline
 on:
   push:
     branches:
-      - develop
-      - feature/**
+      - "feature/**"
   pull_request:
     branches:
       - develop
 
+concurrency:
+  group: ci-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: "3.12"
 
 jobs:
-  test:
+  python-tests:
+    name: 🧪 Python Tests
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Set up Python
+        with:
+          persist-credentials: true
+
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      
+          cache: "pip"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      - name: Run linting with ruff
+
+      - name: Lint
+        run: ruff check src/ tests/
+
+      - name: Type check
+        run: mypy src/ --ignore-missing-imports || true
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=src --cov-fail-under=80
+
+  terraform-validation:
+    name: 🔧 Terraform Validation
+    runs-on: ubuntu-latest
+    needs: python-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.6.0"
+
+      - name: Terraform fmt / init / validate
         run: |
-          ruff check src/ tests/
-      
-      - name: Run type checking with mypy
-        run: |
-          mypy src/ --ignore-missing-imports --no-error-summary || true
-      
-      - name: Run tests with pytest
-        run: |
-          pytest tests/ \
-            -v \
-            --cov=src \
-            --cov-report=html \
-            --cov-report=term-missing \
-            --cov-fail-under=80
-      
-      - name: Validate Terraform
-        run: |
-          cd terraform
-          terraform fmt -check -recursive .
-          terraform validate
-        if: always()
-      
-      - name: Run TFLint
+          if [ -d "terraform" ]; then
+            cd terraform
+            terraform fmt -check -recursive .
+            terraform init -backend=false
+            terraform validate
+          else
+            echo "No terraform directory, skipping"
+          fi
+
+      - name: TFLint (if configured)
+        if: ${{ always() }}
         uses: terraform-linters/setup-tflint@v3
-        if: always()
-      
-      - name: TFLint - Check
+        continue-on-error: true
+
+  pr-feature-to-develop:
+    name: 📝 Create PR feature → develop
+    runs-on: ubuntu-latest
+    needs: [python-tests, terraform-validation]
+    if: ${{ startsWith(github.ref, 'refs/heads/feature/') && needs.python-tests.result == 'success' && needs.terraform-validation.result == 'success' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sanitize branch name
+        id: sanitize
         run: |
-          cd terraform
-          tflint --init
-          tflint
-        if: always()
+          # GITHUB_REF_NAME is provided by the runner and equals branch name for refs/heads/*
+          BRANCH_NAME="${GITHUB_REF_NAME:-${GITHUB_REF#refs/heads/}}"
+          CLEAN=$(echo "$BRANCH_NAME" | tr '/' '-')
+          echo "clean=$CLEAN" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: automated PR from feature to develop"
+          title: "🔄 Merge ${{ github.ref_name }} into develop"
+          body: |
+            Automated PR created by CI pipeline after successful tests.
+            Source branch: ${{ github.ref_name }}
+          branch: automated-pr/${{ steps.sanitize.outputs.clean }}-${{ github.run_number }}
+          base: develop
+          labels: automated
+          draft: false

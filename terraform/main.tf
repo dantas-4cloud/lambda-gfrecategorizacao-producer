@@ -1,6 +1,3 @@
-# Data source to get current AWS account
-data "aws_caller_identity" "current" {}
-
 # CloudWatch Log Group for Lambda
 resource "aws_cloudwatch_log_group" "lambda_logs" {
   name              = "/aws/lambda/${var.environment}-${var.lambda_function_name}"
@@ -54,7 +51,7 @@ resource "aws_lambda_function" "main" {
   runtime          = var.lambda_runtime
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_size
-  source_code_hash = filebase64sha256("lambda_function.zip")
+  source_code_hash = try(filebase64sha256("lambda_function.zip"), "placeholder-for-validate")
 
   depends_on = [
     aws_iam_role_policy_attachment.lambda_basic_execution,

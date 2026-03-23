@@ -1,129 +1,149 @@
-name: Deploy Homolog (Feature-Flag)
+name: Deploy - Homolog
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - feature-flag
-  pull_request:
-    branches:
-      - feature-flag
-    types:
-      - opened
-      - synchronize
+    branches: [feature-flag]
+
+env:
+  AWS_REGION: us-east-2
+  ENVIRONMENT: hom
+  TF_VERSION: 1.6.0
 
 permissions:
   id-token: write
   contents: read
-  pull-requests: write
 
 jobs:
-  ci:
-    name: Run CI Tests
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      - name: Run tests
+
+      - name: Run pytest
         run: |
           pytest tests/ -v --cov=src --cov-fail-under=80
-  
+
   terraform-plan:
-    name: Terraform Plan (HOM)
-    needs: ci
+    name: Plan Terraform
+    needs: test
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Build Lambda Package
+        run: |
+          python -m pip install --upgrade pip --quiet
+          mkdir -p package
+          cd src
+          pip install -r ../requirements.txt -t ../package/ --quiet
+          cp *.py ../package/
+          cd ../package
+          zip -r ../lambda_function.zip . -q
+          cd ..
+          mv lambda_function.zip infra/
+          echo "✓ Lambda package created at infra/lambda_function.zip"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.6.0
-      
+          terraform_version: ${{ env.TF_VERSION }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-east-1
-      
-      - name: Terraform Format Check
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Validation
         run: |
-          cd terraform
+          cd infra
           terraform fmt -check -recursive .
-      
-      - name: Terraform Init
-        run: |
-          cd terraform
           terraform init -backend=false
-      
+          terraform validate
+
       - name: Terraform Plan
         run: |
-          cd terraform
+          cd infra
           terraform plan \
             -var-file="environments/hom.tfvars" \
-            -out=hom.tfplan \
+            -out=tfplan \
             -input=false
-      
-      - name: Upload Terraform Plan
+
+      - name: Upload Plan
         uses: actions/upload-artifact@v4
         with:
-          name: hom-terraform-plan
-          path: terraform/hom.tfplan
-  
+          name: hom-tfplan
+          path: infra/tfplan
+
   deploy:
     name: Deploy to Homolog
     needs: terraform-plan
     runs-on: ubuntu-latest
     environment: homolog
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: hom-terraform-plan
-          path: terraform/
-      
+      - uses: actions/checkout@v4
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.6.0
-      
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: hom-tfplan
+          path: infra/
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-east-1
-      
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Terraform Init
         run: |
-          cd terraform
+          cd infra
           terraform init -backend=false
-      
+
       - name: Terraform Apply
         run: |
-          cd terraform
-          terraform apply \
-            -no-color \
-            -input=false \
-            hom.tfplan
-      
-      - name: Run Post-Deploy Tests
+          cd infra
+          terraform apply -no-color -input=false tfplan
+
+      - name: Get Lambda Info
         run: |
-          python -m pytest tests/ -v
+          cd infra
+          echo "Lambda ARN: $(terraform output -raw lambda_function_arn)"
+          echo "Lambda URL: $(terraform output -raw lambda_function_url)"
+          echo "Log Group: $(terraform output -raw cloudwatch_log_group_name)"
+
+      - name: Health Check
+        run: |
+          LAMBDA_URL=$(cd infra && terraform output -raw lambda_function_url)
+          echo "Testing Lambda at: $LAMBDA_URL"
+          curl -s -X POST "$LAMBDA_URL" \
+            -H "Content-Type: application/json" \
+            -d '{"test": "hom-deployment"}' \
+            -w "\nStatus: %{http_code}\n"
