@@ -25,8 +25,8 @@ jobs:
       - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
@@ -48,8 +48,8 @@ jobs:
       - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
 
       - name: Build Lambda Package
         run: |
@@ -72,8 +72,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::366476833548:oidc-provider/token.actions.githubusercontent.com
+          aws-region: us-east-2
 
       - name: Terraform Validation
         run: |
@@ -130,8 +130,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::366476833548:oidc-provider/token.actions.githubusercontent.com
+          aws-region: us-east-2
 
       - name: Terraform Init
         run: |
